@@ -1,5 +1,4 @@
-import { Client, Users, Account } from 'node-appwrite';
-import { fetch } from 'undici';
+import { Client, Users, } from 'node-appwrite';
 var soap = require('soap');
 
 
@@ -22,16 +21,23 @@ export default async ({ req, res, log, error }) => {
     .setKey(req.headers['x-appwrite-key'] ?? '');
   
   const users = new Users(client);
-  const account = new Account(client);
+
+  const reqContext = req.bodyJson;
 
   const userId = req.headers['x-appwrite-user-id'] ?? 'unique()';
-  const userPhone = req.headers['x-appwrite-user-phone'] ?? 'unknown';
-
+  const userPhone = reqContext.phone;
+  if (!userPhone) {
+    return res.json({
+      status: 'error',
+      message: 'Phone number is required'
+    });
+  }
   const token = await users.createToken(
     userId,
     4,
     60*3 // 4 chars, valid for 3 minutes
   );
+
 
   // Log the token to the console (for debugging purposes)
   log(`Generated token for user ${userId}: ${token.secret}`);
@@ -48,13 +54,14 @@ export default async ({ req, res, log, error }) => {
       bodyId: MELIPAYAMAK_PATTERN_KEY, // Ensure 'bodyId' is provided in the request body
     });
   }).then((result) => {
-    log(`SMS sent successfully: ${JSON.stringify(result)}`);
+    log(`SMS sent successfully: ${(result)}`);
   }).catch((err) => {
     error(`Error sending SMS: ${err.message}`);
   });
 
 
   return res.json({
-    status: 'ok'
+    status: 'ok',
+    userId: token.userId,
   });
 };
